@@ -3,13 +3,14 @@ import random
 
 
 ### DFA representation: as dictionary key value
-### {start-state: [(symbol, end_state)]}
-### For beginning I don't need symbol, only start-end-states. Just added it for possible future uses
+### {start_state: {symbol: end_state} }
+### doubled states are notated as (state_1, state_2)
+### symbols are needed mainly to concatenate two states, short path is not calculated yet
 
 max_states_number = 10
+max_transition_number = 20
 max_alphabet_number = 2
 alphabet = set(range(max_alphabet_number))
-max_transition_number = 20
 
 def generate_transitions():
     begin_state = str(random.randint(0, max_states_number - 1))
@@ -21,22 +22,47 @@ def add_transition(dfa, transition):
     start_state = transition[0]
     end_state = transition[2]
     letter = transition[1]
-    #existing transition symbols
-    transition_letters = []
-    for exist_trans in dfa.get(start_state):
-        transition_letters.append(exist_trans[0])
     
-    # max number of transitions condition is included here as well
-    if letter not in transition_letters:
-        dfa[start_state].append((letter, end_state))
+    if letter not in dfa[start_state]:
+        dfa[start_state][letter] = end_state
         return 1
     else:
         return 0
 
+def add_complicated_transition(dfa, state_one, state_two):
+    
+    new_state = (state_one, state_two)
+    dfa[new_state] = dict()
+
+    for (letter, transition) in dfa[state_one].items():
+        if letter in dfa[state_two]:
+            if transition > dfa[state_two][letter]:
+                new_transition = (dfa[state_two][letter], transition)
+                
+            elif transition < dfa[state_two][letter]:
+                new_transition = (transition, dfa[state_two][letter])
+            
+            else:
+                new_transition = transition
+                
+            dfa[new_state][letter] = new_transition
+            
+        else:
+            dfa[new_state][letter] = transition
+             
+
+    for (letter, transitions) in dfa[state_two].items():
+        if letter in dfa[state_one]:
+            pass
+        else:
+            dfa[new_state][letter] = transition
+    
+    return dfa 
+
 def generate_DFA():
     failed_tries = 0
     transition_number = 0
-    dfa = {str(k):[] for k in range(0, max_states_number)}
+    dfa = {str(k):dict() for k in range(0, max_states_number)}
     while (transition_number < max_transition_number):
         transition = generate_transitions()
         if (not add_transition(dfa, transition)):
@@ -47,36 +73,24 @@ def generate_DFA():
         else:
             transition_number += 1
             failed_tries = 0
-    return dfa
-    
-
-def add_complicated_transition(dfa, state_one, state_two):
-    new_state = state_one + state_two
-    transition_letters = []
-    for exist_trans in dfa.get(state_one):
-        transition_letters.append(exist_trans[0])
-    for exist_trans in dfa.get(state_two):
-        transition_letters.append(exist_trans[0])
-    for letter in transition_letters:
-        
-    
+    return dfa    
     
 def generate_double(dfa):
     states = list(dfa.keys())
     dfa_double = dfa.copy()
     for state_one in states:
         for state_two in states:
-            if state_one == state_two:
+            if (state_one == state_two or state_one == {} or state_two == {}):
                 continue
                 
-            if (state_one + state_two in dfa.keys() or 
-                    state_two + state_one in dfa.keys()):
+            if ( (state_one, state_two) in dfa_double or 
+                    (state_two, state_one) in dfa_double):
                 continue
-            
+                
+                
             dfa_double = add_complicated_transition(dfa_double, state_one, state_two )
             
     return dfa_double
-
 
 
 def bfs(dfa, state): #function for BFS
@@ -88,20 +102,23 @@ def bfs(dfa, state): #function for BFS
     while queue:          # Creating loop to visit each node
         m = queue.pop(0) 
         if (len(m) == 1):
-            #print("checking path from singleton while bfs!")
+            # print("checking path from singleton while bfs!")
             continue
- #       print (m, end = " ") 
-        for neighbour in dfa[m]:
-        
-            if neighbour[1] not in visited:
+        else: 
+            print("it's not a singleton!")
+        # print (m, end = " ") 
+        for (letter, destination) in dfa[m].items():
+            if destination not in visited:
                 reset_len += 1
-                if (len(neighbour[1]) == 1):
-                    return (state, neighbour[1], reset_len)
-                visited.append(neighbour[1])
-                queue.append(neighbour[1])
+                if (type(destination) == str):
+                    return (state, destination, reset_len)
+                visited.append(destination)
+                queue.append(destination)
                 
     return 0
         
+        
+# Do singletones should be compressed?        
 def check_synchro(dfa):
     dfa_extended = generate_double(dfa)
     states_to_compress = set(dfa_extended.keys())
@@ -113,78 +130,11 @@ def check_synchro(dfa):
             
     print(dfa_extended)
 
-    
-
-
-
-
-
-
-
-
 
 
 
 dfa_src = generate_DFA()
 dfa_double = generate_double(dfa_src)
-check_synchro(dfa_src)
-#bfs(dfa_double, '01')    # function calling
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#check_synchro(dfa_src)
+print(bfs(dfa_double, ('0', '1')))
 
