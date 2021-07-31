@@ -103,14 +103,16 @@ def bfs(dfa, state): #function for BFS
         m = queue.pop(0) 
         if (len(m) == 1):
             # print("checking path from singleton while bfs!")
-            continue
+            pass
         else: 
-            print("it's not a singleton!")
-        # print (m, end = " ") 
+            #print("it's not a singleton!")
+            pass
+        print (m, end = " ") 
         for (letter, destination) in dfa[m].items():
             if destination not in visited:
                 reset_len += 1
                 if (type(destination) == str):
+                    print()
                     return (state, destination, reset_len)
                 visited.append(destination)
                 queue.append(destination)
@@ -121,6 +123,7 @@ def bfs(dfa, state): #function for BFS
 # Do singletones should be compressed?        
 def check_synchro(dfa):
     dfa_extended = generate_double(dfa)
+    
     states_to_compress = set(dfa_extended.keys())
     temp_states = states_to_compress.copy()
     for state in temp_states:
