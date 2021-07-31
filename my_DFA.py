@@ -3,8 +3,8 @@ import random
 
 
 ### DFA representation: as dictionary key value
-### {start_state: {symbol: end_state} }
-### doubled states are notated as (state_1, state_2)
+### {start_state: {transition_symbol: end_state} }
+### doubled states are notated as (state_1, state_2), singletones as state_1
 ### symbols are needed mainly to concatenate two states, short path is not calculated yet
 
 max_states_number = 10
@@ -29,6 +29,7 @@ def add_transition(dfa, transition):
     else:
         return 0
 
+# to concatenate all transitions of singletones to a doubled state
 def add_complicated_transition(dfa, state_one, state_two):
     
     new_state = (state_one, state_two)
@@ -69,12 +70,14 @@ def generate_DFA():
             failed_tries += 1
             if failed_tries > 3:
                 pass
-                #print("failed tries:", failed_tries)
+                # print("failed tries:", failed_tries)
         else:
             transition_number += 1
             failed_tries = 0
     return dfa    
-    
+
+
+# generates DFA with all doubled states    
 def generate_double(dfa):
     states = list(dfa.keys())
     dfa_double = dfa.copy()
@@ -92,20 +95,22 @@ def generate_double(dfa):
             
     return dfa_double
 
-
-def bfs(dfa, state): #function for BFS
+# bfs to find a path from one state (e.g. doubled) to another (e.g. singleton)
+def bfs(dfa, state): 
+    print() 
+    print("It's bfs path without end singleton", end = " ")
     visited = []    
     queue = []      
     reset_len = 0
     visited.append(state)
     queue.append(state)
-    while queue:          # Creating loop to visit each node
+    while queue:          # visiting each node
         m = queue.pop(0) 
         if (len(m) == 1):
             # print("checking path from singleton while bfs!")
             pass
         else: 
-            #print("it's not a singleton!")
+            # print("it's not a singleton!")
             pass
         print (m, end = " ") 
         for (letter, destination) in dfa[m].items():
@@ -118,26 +123,62 @@ def bfs(dfa, state): #function for BFS
                 queue.append(destination)
                 
     return 0
+
+# assuming states_to_remove is doubled state
+def remove_states(all_states, states_to_remove):
+
+    print("states to compress are", all_states)
+    print("found reduction is ", states_to_remove)
+    
+    # deleting the doubled state
+    all_states.remove(states_to_remove)
+    # deleting all states containing first or second state
+    temp_states = all_states.copy()
+    for remove_state in states_to_remove:
+        for state in temp_states:
+            if remove_state in state:
+                all_states.remove(state)
+                      
+    return all_states
+            
+    
         
-        
-# Do singletones should be compressed?        
+# Should singletones be compressed?        
 def check_synchro(dfa):
     dfa_extended = generate_double(dfa)
     
     states_to_compress = set(dfa_extended.keys())
     temp_states = states_to_compress.copy()
+    # removing all singletones (not sure if this should be done)
     for state in temp_states:
-        reduced_to = bfs(dfa_extended, state)
-#        if (reduced_to):
-#            print("path from, path to, reset length", reduced_to)
-            
-    print(dfa_extended)
+        if (len(state) == 1):
+            states_to_compress.remove(state)
+    
+    temp_states = set()
+    while (len(states_to_compress)):
+        if (len(temp_states) == len(states_to_compress)):       # no reduction happened
+            print()
+            print()
+            print("NOT SYNCHRONIZABLE!")
+            print()
+            # print(states_to_compress)
+            break
+        temp_states = states_to_compress.copy()
+        for state in temp_states:
+            reduced_to = bfs(dfa_extended, state)   # searching for the reduction from any doubled state
+            if reduced_to:
+                # print("path from, path to, reset length", reduced_to)
+                # print(states_to_compress)
+                states_to_compress = remove_states(states_to_compress, reduced_to[0])
+                break
+            else:
+                print("no path found!")
+                
+    # print(dfa_extended)
 
 
 
 
 dfa_src = generate_DFA()
-dfa_double = generate_double(dfa_src)
-#check_synchro(dfa_src)
-print(bfs(dfa_double, ('0', '1')))
+check_synchro(dfa_src)
 
