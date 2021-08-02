@@ -12,7 +12,7 @@ import random
 # so choose the numbers carefully. Maybe later checking will be added
 
 max_states_number = 4
-max_transition_number = 2
+max_transition_number = 6
 max_alphabet_number = 2
 alphabet = set(range(max_alphabet_number))
 
@@ -101,26 +101,35 @@ def generate_double(dfa):
 
 # check via bfs if every vertex can be reached from any
 # strongly connected component
+
+# if there are too little transitions to create strongly connected, 
+# it falls in infinite loop
 def check_connected(dfa):
-    key_num = len(dfa.keys())
     for state in dfa:
         visited = []    
         queue = []          
-        reached_vertices = 0
         visited.append(state)
         queue.append(state)
         while queue:
-            m = queue.pop(0)
-            reached_vertices += 1
-            if (not len(dfa[m].items())):
-                print("going through a state with no transitions")
-                continue
             
-            if destination not in visited:
-                visited.append(destination)
-                queue.append(destination)
-    if reached_vertices < key_num:
-        print("not strongly connected! Need ", key_num, " got ", reached_vertices)
+            m = queue.pop(0)
+            
+            # state with no transitions
+            if (not len(dfa[m].items())): 
+                return -1
+            
+            for (letter, destination) in dfa[m].items():
+            
+                if destination not in visited:
+
+                    visited.append(destination)
+                    queue.append(destination)
+                
+    # not every vertice can be reached 
+    if len(visited) < len(dfa.keys()):
+        return 0
+    
+    return 1
 
 # bfs through @state with current @dfa transitions untill singleton reached.
 # return 0 if not possible
@@ -143,7 +152,6 @@ def try_reduction(dfa, state):
             continue
         
         for (letter, destination) in dfa[m].items():
-            
         
             if destination not in visited:
                 reset_len += 1
@@ -225,9 +233,22 @@ def check_synchro(dfa):
 count = 0
 
 dfa_src = generate_DFA()
-while (check_synchro(dfa_src)):
-    count += 1
-    print()
+check_result = check_connected(dfa_src)
+
+while (check_result != 1):
     dfa_src = generate_DFA()
+    check_result = check_connected(dfa_src)
+    if (check_result == -1):
+        print("empty transition")
+    elif (check_result == 0):
+        print("not strongly connected!") 
+
+
+print(dfa_src) 
+
+#while (check_synchro(dfa_src)):
+#    count += 1
+#    print()
+#    dfa_src = generate_DFA()
     
-print("not sychro, passed tries ", count)
+#print("not sychro, passed tries ", count)
