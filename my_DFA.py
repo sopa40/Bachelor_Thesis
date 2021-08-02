@@ -7,8 +7,12 @@ import random
 ### doubled states are notated as (state_1, state_2), singletones as state_1
 ### symbols are needed mainly to concatenate two states, short path is not calculated yet
 
-max_states_number = 10
-max_transition_number = 20
+
+# if there are more max_transitions than possible with current max_states and alphabet, the program will fall in infinite loop
+# so choose the numbers carefully. Maybe later checking will be added
+
+max_states_number = 4
+max_transition_number = 2
 max_alphabet_number = 2
 alphabet = set(range(max_alphabet_number))
 
@@ -52,7 +56,7 @@ def add_complicated_transition(dfa, state_one, state_two):
             dfa[new_state][letter] = transition
              
 
-    for (letter, transitions) in dfa[state_two].items():
+    for (letter, transition) in dfa[state_two].items():
         if letter in dfa[state_one]:
             pass
         else:
@@ -60,6 +64,8 @@ def add_complicated_transition(dfa, state_one, state_two):
     
     return dfa 
 
+
+# A question: should only strongly connected graphs be generated? 
 def generate_DFA():
     failed_tries = 0
     transition_number = 0
@@ -68,9 +74,6 @@ def generate_DFA():
         transition = generate_transitions()
         if (not add_transition(dfa, transition)):
             failed_tries += 1
-            if failed_tries > 3:
-                pass
-                # print("failed tries:", failed_tries)
         else:
             transition_number += 1
             failed_tries = 0
@@ -97,8 +100,6 @@ def generate_double(dfa):
 
 # bfs to find a path from one state (e.g. doubled) to another (e.g. singleton)
 def bfs(dfa, state): 
-    print() 
-    print("It's bfs path without end singleton", end = " ")
     visited = []    
     queue = []      
     reset_len = 0
@@ -106,18 +107,24 @@ def bfs(dfa, state):
     queue.append(state)
     while queue:          # visiting each node
         m = queue.pop(0) 
-        if (len(m) == 1):
-            # print("checking path from singleton while bfs!")
-            pass
-        else: 
-            # print("it's not a singleton!")
-            pass
-        print (m, end = " ") 
+        
+        # printing path for debugging needs
+        # print (m, end = " ") 
+        
+        print("m is", m, " dfa[m] are ", dfa[m].items())
+        
+        if (not len(dfa[m].items())):
+            print("going through a state with no transitions")
+            continue
+        
         for (letter, destination) in dfa[m].items():
+            
+        
             if destination not in visited:
                 reset_len += 1
+                
+                # if singleton found --> reduction happens
                 if (type(destination) == str):
-                    print()
                     return (state, destination, reset_len)
                 visited.append(destination)
                 queue.append(destination)
@@ -125,60 +132,78 @@ def bfs(dfa, state):
     return 0
 
 # assuming states_to_remove is doubled state
-def remove_states(all_states, states_to_remove):
-
-    print("states to compress are", all_states)
-    print("found reduction is ", states_to_remove)
+def remove_states(all_states, reduction):
     
-    # deleting the doubled state
+    states_to_remove = reduction[0]
+    reduction_dest = reduction[1]
+    
+    print("start state is ", states_to_remove, " destination is ", reduction_dest)
+    
+    print("removing ", states_to_remove)
     all_states.remove(states_to_remove)
+    
+    # if reduced to one of two states, it stays in all_states to be (possibly) removed later
+    if reduction_dest in states_to_remove:
+        states_to_remove = tuple(x for x in states_to_remove if x != reduction_dest)
+        
+    # deleting the doubled state
+    
+    print(" new states to remove is ", states_to_remove)
+    
     # deleting all states containing first or second state
     temp_states = all_states.copy()
     for remove_state in states_to_remove:
         for state in temp_states:
             if remove_state in state:
+                print("removing ", state)
                 all_states.remove(state)
                       
     return all_states
             
     
         
-# Should singletones be compressed?        
+# Singletones are not in states_to_compress
+
+# Finding only a pass to a random singleton. 
+# Assuming one can synchronize it to one state for all later. Connected component 
 def check_synchro(dfa):
     dfa_extended = generate_double(dfa)
     
+    
+    print("simple is ", dfa)
+    print("extended is ", dfa_extended)
+    
     states_to_compress = set(dfa_extended.keys())
     temp_states = states_to_compress.copy()
-    # removing all singletones (not sure if this should be done)
+    
+    # removing all singletones, leaving only doubled (not sure if this should be done)
     for state in temp_states:
         if (len(state) == 1):
             states_to_compress.remove(state)
     
     temp_states = set()
     while (len(states_to_compress)):
-        if (len(temp_states) == len(states_to_compress)):       # no reduction happened
-            print()
-            print()
-            print("NOT SYNCHRONIZABLE!")
-            print()
-            # print(states_to_compress)
-            break
+        if (len(temp_states) == len(states_to_compress)):       # no reduction happened (no possible)
+            return 0
+            
         temp_states = states_to_compress.copy()
         for state in temp_states:
             reduced_to = bfs(dfa_extended, state)   # searching for the reduction from any doubled state
             if reduced_to:
-                # print("path from, path to, reset length", reduced_to)
-                # print(states_to_compress)
-                states_to_compress = remove_states(states_to_compress, reduced_to[0])
+                states_to_compress = remove_states(states_to_compress, reduced_to)
                 break
-            else:
-                print("no path found!")
-                
-    # print(dfa_extended)
+    
+    return 1
 
 
 
+count = 0
 
 dfa_src = generate_DFA()
-check_synchro(dfa_src)
+while (check_synchro(dfa_src)):
+    count += 1
+    print()
+    dfa_src = generate_DFA()
+    
+print("not sychro, passed tries ", count)
 
