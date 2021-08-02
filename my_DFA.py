@@ -98,8 +98,33 @@ def generate_double(dfa):
             
     return dfa_double
 
-# bfs to find a path from one state (e.g. doubled) to another (e.g. singleton)
-def bfs(dfa, state): 
+
+# check via bfs if every vertex can be reached from any
+# strongly connected component
+def check_connected(dfa):
+    key_num = len(dfa.keys())
+    for state in dfa:
+        visited = []    
+        queue = []          
+        reached_vertices = 0
+        visited.append(state)
+        queue.append(state)
+        while queue:
+            m = queue.pop(0)
+            reached_vertices += 1
+            if (not len(dfa[m].items())):
+                print("going through a state with no transitions")
+                continue
+            
+            if destination not in visited:
+                visited.append(destination)
+                queue.append(destination)
+    if reached_vertices < key_num:
+        print("not strongly connected! Need ", key_num, " got ", reached_vertices)
+
+# bfs through @state with current @dfa transitions untill singleton reached.
+# return 0 if not possible
+def try_reduction(dfa, state): 
     visited = []    
     queue = []      
     reset_len = 0
@@ -188,7 +213,7 @@ def check_synchro(dfa):
             
         temp_states = states_to_compress.copy()
         for state in temp_states:
-            reduced_to = bfs(dfa_extended, state)   # searching for the reduction from any doubled state
+            reduced_to = try_reduction(dfa_extended, state)   # searching for the reduction from any doubled state
             if reduced_to:
                 states_to_compress = remove_states(states_to_compress, reduced_to)
                 break
@@ -206,4 +231,3 @@ while (check_synchro(dfa_src)):
     dfa_src = generate_DFA()
     
 print("not sychro, passed tries ", count)
-
