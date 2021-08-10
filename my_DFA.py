@@ -12,15 +12,16 @@ import random
 
 ### if the format of the DFA does not correspond to the one above, either error or wrong evaluations are possible.
 
-### symbols are needed mainly to concatenate two states, short path is not calculated yet
+### symbols are needed mainly to concatenate two states and for transitions, short path is not calculated yet
 
 ### if there are more max_transitions than possible with current max_states and alphabet, the program will fall in
 ### infinite loop so choose the numbers carefully. Maybe later checking will be added
 
-max_states_number = 20
-max_transition_number = 30
+
+max_states_number = 3
+max_transition_number = 4
 max_alphabet_number = 2
-alphabet = set(range(max_alphabet_number))
+alphabet = list(range(max_alphabet_number))
 
 def generate_transitions():
     begin_state = random.randint(0, max_states_number - 1)
@@ -96,6 +97,65 @@ def try_reduction(dfa, start_state):
 
     return 0
 
+
+### When only strongly connected DFAs should be generated, task is easier, but it's a pretty big restriction
+### If not only strongly connected - all reduced singletones should be saved and 
+### In the end one should check wheter you can synchronize all singletones (path from-to)
+def generate_DFA():
+    failed_tries = 0
+    transition_number = 0
+    dfa = {k: dict() for k in range(0, max_states_number)}
+    while transition_number < max_transition_number:
+        transition = generate_transitions()
+        if not add_transition(dfa, transition):
+            failed_tries += 1
+        else:
+            transition_number += 1
+            failed_tries = 0
+    return dfa
+
+### generates DFA with all doubled states    
+def generate_double(dfa):
+    states = list(dfa.keys())
+    dfa_double = dfa.copy()
+    for state_one in states:
+        for state_two in states:
+            if state_one == state_two or state_one == {} or state_two == {}:
+                continue
+
+            if ((state_one, state_two) in dfa_double or
+                    (state_two, state_one) in dfa_double):
+                continue
+
+            dfa_double = concatenate_two_states(dfa_double, state_one, state_two)
+
+    return dfa_double
+
+def generate_connected_DFA():
+    if_connected = 0
+    while if_connected != 1:
+        generated_DFA = generate_DFA()
+        if_connected = check_connected(generated_DFA)
+    
+    return generated_DFA
+
+### orders transitions to be from 0 to @max_transition_number
+def reorder_transitions(dfa):
+    transition_order = alphabet
+    
+    for state in dfa:
+        transitions = dfa[state].keys()
+        ordered_transitions = []
+        
+        for letter in transition_order:
+            if letter in transitions:
+                ordered_transitions.append(letter)
+                
+        dfa[state] = {k: dfa[state][k] for k in ordered_transitions}
+        
+    return dfa
+    
+
 ### assuming states_to_remove is doubled state
 ### removes all states from @all_states assosiated with @reduction
 def remove_states(all_states, reduction):
@@ -118,6 +178,7 @@ def remove_states(all_states, reduction):
 
     return all_states
 
+
 ### BFS on @dfa with @start_state
 ### Return visited states as array
 def find_reachable_states(dfa, start_state):
@@ -138,6 +199,15 @@ def find_reachable_states(dfa, start_state):
                 queue.append(destination)
 
     return visited
+
+  
+### Return 1 on empty == if DFA has at least one empty state (with no transitions)
+### Return 0 else    
+def check_if_empty(dfa):
+    for state in dfa:
+        if dfa[state] == {}:
+            return 1
+    return 0    
 
 ### check via bfs if every vertex can be reached from any
 ### strongly connected component
@@ -223,47 +293,7 @@ def check_synchro(dfa):
                 break
     
     return ret_val 
-
-### When only strongly connected DFAs should be generated, task is easier, but it's a pretty big restriction
-### If not only strongly connected - all reduced singletones should be saved and 
-### In the end one should check wheter you can synchronize all singletones (path from-to)
-def generate_DFA():
-    failed_tries = 0
-    transition_number = 0
-    dfa = {k: dict() for k in range(0, max_states_number)}
-    while transition_number < max_transition_number:
-        transition = generate_transitions()
-        if not add_transition(dfa, transition):
-            failed_tries += 1
-        else:
-            transition_number += 1
-            failed_tries = 0
-    return dfa
-
-### generates DFA with all doubled states    
-def generate_double(dfa):
-    states = list(dfa.keys())
-    dfa_double = dfa.copy()
-    for state_one in states:
-        for state_two in states:
-            if state_one == state_two or state_one == {} or state_two == {}:
-                continue
-
-            if ((state_one, state_two) in dfa_double or
-                    (state_two, state_one) in dfa_double):
-                continue
-
-            dfa_double = concatenate_two_states(dfa_double, state_one, state_two)
-
-    return dfa_double
-
-def generate_connected_DFA():
-    if_connected = 0
-    while if_connected != 1:
-        generated_DFA = generate_DFA()
-        if_connected = check_connected(generated_DFA)
     
-    return generated_DFA
 
 ### searches for a non-synchro DFA until finds (watchout infinite loops!)
 def find_non_synchro():
@@ -272,14 +302,14 @@ def find_non_synchro():
     is_synchro = 1
     while is_synchro == 1:
         count += 1            
-        if (count % 100 == 0):
-            print("count is {}", format(count))
-        # dfa = generate_connected_DFA() to work with connected ones
         dfa = generate_DFA()
+        while check_if_empty(dfa):
+            # dfa = generate_connected_DFA() to work with connected ones
+            dfa = generate_DFA()
         is_synchro = check_synchro(dfa)
 
-    print("not sychro, passed tries ", count)
-    print(dfa)
+
+    return count
 
 if __name__ == "__main__":
     
@@ -296,8 +326,118 @@ if __name__ == "__main__":
         print("too many transitions, infinite loop while generating automaton")
         exit()
     
-    find_non_synchro()
+    
+    ### used in further experiments, count of DFAs to be tested
+    max_count = 1000
+
+    ### Experiment 0: How many under random @max_count are synchro
+    """
+    generated_automata = 0
+    non_synchro_count = 0
+
+    
+    while generated_automata < max_count:
+        generated_automata += find_non_synchro()
+        non_synchro_count += 1
+
+    print("Total generated {}, non synchro among them {}".format(generated_automata, non_synchro_count))
+    """
 
 
+    ### Experiment 1: How many unique DFA under @max_count are synchro
+    
+    ### RESULT: number of unique (NON_EMPTY) automata raises very quickly, for example for (states, transitions, alphabet)
+    ### (4 4 1) it's 256, (4 4 2) it's 4096, (4 4 3) it's 20736?, (5 5 1 3125), witn (n n 1) it's n^n
+    ### (20 20 1) it's more than 170k
+    ### Without NON_EMPTY restriction it raises even more drastic
+    """
+    generated_arr = []
+    failed_count = 0
+    added_dfa = 0
+    synchro_unique = 0
+    max_count = 10000
+    max_failed_count = 100000
+    while failed_count < max_failed_count:
+        if added_dfa == max_count:
+            break
+        gen_dfa = generate_DFA()
+        while check_if_empty(gen_dfa):
+            gen_dfa = generate_DFA()
+        gen_dfa = reorder_transitions(gen_dfa)
+        if gen_dfa in generated_arr:
+            failed_count += 1
+        else:
+            generated_arr.append(gen_dfa)
+            added_dfa += 1
+            failed_count = 0
 
-# Just an example of printing style: print ("{} holding {}.".format(i,x)) 
+    for dfa in generated_arr:
+        if check_synchro(dfa) == 1:
+            synchro_unique += 1
+    print("among {} unique DFA synchro is {}".format(added_dfa, synchro_unique))
+    """ 
+    
+    ### RESULT of comparing Experiment 0 and Experiment 1: almost no difference if we use unique automata or random
+    ### because with number big enough numbers (let's say starting with 8) chance of collision is less than 1/8^8
+    
+    
+    ### Experiment 2: how many random NON_EMPTY DFAs under @max_count are synchro
+    """
+    tested_dfa = 0
+    synchro_random = 0
+    while tested_dfa < max_count:
+        random_dfa = generate_DFA()
+        while check_if_empty(random_dfa):
+            random_dfa = generate_DFA()
+        if check_synchro(random_dfa) == 1:
+            synchro_random += 1
+            
+        tested_dfa += 1
+        
+    print("among {} random DFA synchro is {}".format(tested_dfa, synchro_random))
+    """
+    
+    
+    ### Experiment 3: how many DFAs with empty states under @max_count are synchro
+    
+    """TODO"""
+    
+    
+    ### Experiment 4: how many (unique?) DFA with empty states under @max_count are synchro 
+    
+    ### Important: if @max_transition_number == @max_states_number * @max_alphabet_number, it will not find empty DFA
+    ### So be sure to pick up number suitable for this test
+    empty_tested = 0
+    synchro_empty = 0
+    non_empty_generated = 0
+    while empty_tested < max_count:
+        empty_dfa = generate_DFA()
+        while not check_if_empty(empty_dfa):
+            non_empty_generated += 1
+            empty_dfa = generate_DFA()
+            
+        if check_synchro(empty_dfa) == 1:
+            print(empty_dfa)
+            break
+            synchro_empty += 1
+        empty_tested += 1
+        if empty_tested % 1000 == 0:
+            print("already tested number is ", empty_tested)
+    print("among {} empty DFA synchro is {}. Non empty generated meanwhile is {}".format(empty_tested, synchro_empty, non_empty_generated))
+    
+    
+    ### Experiment 5: find a not fully connected DFA with doubled states, but still synchro 
+    ### assuming it should be connected to some strongly connected component of the DFA
+    
+    """TODO"""
+
+
+    ### Experiment 6: find fully connected DFA,  but non synchro
+    
+    """TODO"""
+    
+    ### Experiment 7: how many tries to generate fully connected
+    
+    """TODO"""
+    
+    
