@@ -12,13 +12,18 @@ import random
 
 ### symbols are needed mainly to concatenate two states and for transitions, short path is not calculated yet
 
-max_states_number = 3
-max_transition_number = 4
+max_states_number = 15
+max_transition_number = 15
 max_alphabet_number = 2
 alphabet = list(range(max_alphabet_number))
 
 def generate_transitions():
     begin_state = random.randint(0, max_states_number - 1)
+    end_state = random.randint(0, max_states_number - 1)
+    letter = random.randint(0, max_alphabet_number - 1)
+    return begin_state, letter, end_state
+
+def generate_transition_from_state(begin_state):
     end_state = random.randint(0, max_states_number - 1)
     letter = random.randint(0, max_alphabet_number - 1)
     return begin_state, letter, end_state
@@ -105,6 +110,24 @@ def generate_DFA():
             failed_tries += 1
         else:
             transition_number += 1
+            failed_tries = 0
+    return dfa
+
+def generate_non_empty_DFA():
+    dfa = {k: dict() for k in range(0, max_states_number)}
+    failed_tries = 0
+    residual_trans_num = max_transition_number - max_states_number
+    for state in dfa:
+        transition_from_state = generate_transition_from_state(state)
+        if not add_transition(dfa, transition_from_state):
+            print("smth went wrong while generating non-empty DFA")
+
+    while residual_trans_num > 0:
+        transition = generate_transitions()
+        if not add_transition(dfa, transition):
+            failed_tries += 1
+        else:
+            residual_trans_num -= 1
             failed_tries = 0
     return dfa
 
@@ -289,17 +312,14 @@ def check_synchro(dfa):
     return ret_val 
     
 
-### searches for a non-synchro DFA until finds (watchout infinite loops!)
+### searches for a non-synchro DFA among non-empty until finds (watchout infinite loops!)
 def find_non_synchro():
     count = 0
     ### to enter while condition
     is_synchro = 1
     while is_synchro == 1:
         count += 1            
-        dfa = generate_DFA()
-        while check_if_empty(dfa):
-            # dfa = generate_connected_DFA() to work with connected ones
-            dfa = generate_DFA()
+        dfa = generate_non_empty_DFA()
         is_synchro = check_synchro(dfa)
 
 

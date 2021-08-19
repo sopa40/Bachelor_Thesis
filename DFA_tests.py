@@ -1,16 +1,26 @@
+import time
+from progress.bar import IncrementalBar
+from progress.spinner import Spinner
 from DFA_functionality import *
+    
+
+### parameter for maximum suitable DFA to be tested 
+max_count = 100000
 
 ### Experiment 0: How many under random @max_count are synchro
+"""
 def experiment_0(): 
     generated_automata = 0
     non_synchro_count = 0
-
+    bar = Spinner("While loops looking for non_synchro  ")
     while generated_automata < max_count:
+        bar.next()
         generated_automata += find_non_synchro()
         non_synchro_count += 1
-
-    print("Ex0. Among {} random DFA (with empty) synchro is {}".format(generated_automata, non_synchro_count))
-
+        
+    bar.finish()
+    print("Ex0. Among {} random DFA (with empty) synchro is {}".format(generated_automata, (max_count - non_synchro_count)))
+"""
 
 
 ### Experiment 1: How many unique DFA under @max_count are synchro
@@ -27,13 +37,12 @@ def experiment_1():
     added_dfa = 0
     unique_dfa_arr = []
     synchro_unique = 0
+    look_bar = IncrementalBar('looking for unique automata ', max = max_count)
     while added_dfa < max_count:
         if failed_count_loop >= max_failed_count:
-            print ("in experiment 1 bigger @max_count than unique DFA possible")
+            print ("in experiment 1 @max_count is bigger than unique DFA possible")
             break
-        unique_dfa = generate_DFA()
-        while check_if_empty(unique_dfa):
-            unique_dfa = generate_DFA()
+        unique_dfa = generate_non_empty_DFA()
         unique_dfa = reorder_transitions(unique_dfa)
         if unique_dfa in unique_dfa_arr:
             failed_count_total += 1
@@ -41,13 +50,19 @@ def experiment_1():
         else:
             unique_dfa_arr.append(unique_dfa)
             added_dfa += 1
+            look_bar.next()
             failed_count_loop = 0
-
+            
+    print()
+    check_bar = IncrementalBar('checking unique automata', max = max_count)
     for dfa in unique_dfa_arr:
+        check_bar.next()
         if check_synchro(dfa) == 1:
             synchro_unique += 1
-            
-    print("Ex1. Among {} unique DFA (without empty) synchro is {}. Meanwhile generated repeating DFA {}".format(added_dfa, synchro_unique, failed_count))
+    
+    print()
+    print("Test 1. Among {} unique DFA (without empty) synchro is {}".format(added_dfa, synchro_unique))
+    print("Meanwhile generated repeating DFA {}".format(failed_count_total))
 
 
 ### RESULT of comparing Experiment 0 and Experiment 1: almost no difference if we use unique automata or random
@@ -59,17 +74,15 @@ def experiment_2():
     tested_dfa = 0
     synchro_random = 0
     empty_generated = 0
+    bar2 = IncrementalBar('Searching', max = max_count)
     while tested_dfa < max_count:
-        random_dfa = generate_DFA()
-        while check_if_empty(random_dfa):
-            empty_generated += 1
-            random_dfa = generate_DFA()
+        random_dfa = generate_non_empty_DFA()
         if check_synchro(random_dfa) == 1:
             synchro_random += 1
-            
+        bar2.next()
         tested_dfa += 1
-        
-    print("Ex2. Among {} random DFA (without empty) synchro is {}. Meanwhile generated empty DFA {}".format(tested_dfa, synchro_random, empty_generated))
+    print()
+    print("Test 2. Among {} random DFA (without empty) synchro is {}".format(tested_dfa, synchro_random))
 
 
 
@@ -77,20 +90,23 @@ def experiment_2():
 def experiment_3(): 
     tested_dfa = 0
     synchro_random = 0
+    bar3 = IncrementalBar('Searching', max = max_count)
     while tested_dfa < max_count:
         random_dfa = generate_DFA()
         if check_synchro(random_dfa) == 1:
             synchro_random += 1
-            
-        tested_dfa += 1
         
-    print("Ex3. Among {} random DFA (with empty) synchro is {}".format(tested_dfa, synchro_random))
+        bar3.next()
+        tested_dfa += 1
+    
+    print()
+    print("Test 3. Among {} random DFA (with empty) synchro is {}".format(tested_dfa, synchro_random))
 
 
 """ 
     ALERT: 
     Experiment 0 and 3 have identic aim, but different approaches. 
-    Looks like values are different. To be tested 
+    Looks like values are different. To be tested   
 """
 
 ### Experiment 4: how many DFA with empty states under @max_count are synchro 
@@ -102,6 +118,7 @@ def experiment_4():
     empty_tested = 0
     synchro_empty = 0
     non_empty_generated = 0
+    bar4 = IncrementalBar('Searching', max = max_count)
     while empty_tested < max_count:
         empty_dfa = generate_DFA()
         while not check_if_empty(empty_dfa):
@@ -113,9 +130,10 @@ def experiment_4():
             break
             synchro_empty += 1
         empty_tested += 1
-        if empty_tested % 1000 == 0:
-            print("already tested number is ", empty_tested)
-    print("Ex4. Among {} empty DFA synchro is {}. Meanwhile generated non empty DFA {}".format(empty_tested, synchro_empty, non_empty_generated))
+        bar4.next()
+    print()
+    print("Test 4. Among {} empty DFA synchro is {}". format(empty_tested, synchro_empty))
+    print("Meanwhile generated non empty DFA {}".format(non_empty_generated))
 
 
 ### Experiment 5: find a not fully connected DFA with doubled states, but still synchro 
@@ -135,6 +153,8 @@ def experiment_7():
 
 if __name__ == "__main__":
     
+    start_time = time.time()
+    
     ### checking the algorithm with 100% synchronizable automaton. 1 is expected
     # dfa_synchro = {0: {1: 1, 0: 1}, 1: {0: 2, 1: 1}, 2: {0: 3, 1: 2}, 3: {0: 0, 1: 3}}
     # print("IT MUST BE 1! Result", check_synchro(dfa_synchro))
@@ -148,13 +168,19 @@ if __name__ == "__main__":
         print("too many transitions, infinite loop while generating automaton")
         exit()
     
-    
-    
-    ### parameter for maximum suitable DFA to be tested 
-    max_count = 1000000
 
-    experiment_0()
-    experiment_1()
-    experiment_2()
-    experiment_3()
+    while (max_transition_number <= max_states_number * max_alphabet_number):
+        print("Parameters are:")
+        print("Max number of suitable tested DFA ", max_count)
+        print("max_states_number ", max_states_number)
+        print("max_transition_number ", max_transition_number)
+        print("max_alphabet_number ", max_alphabet_number)
+        print("Let's get the party started")
+        print()
+        experiment_1()
+        experiment_2()
+        experiment_3()
+        max_transition_number += 1
+        print()
     
+    print("--- Execution took {:%.2f} seconds ---".format(time.time() - start_time))
