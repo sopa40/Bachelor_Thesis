@@ -12,8 +12,8 @@ import random
 
 ### symbols are needed mainly to concatenate two states and for transitions, short path is not calculated yet
 
-max_states_number = 15
-max_transition_number = 15
+max_states_number = 2
+max_transition_number = 2
 max_alphabet_number = 2
 alphabet = list(range(max_alphabet_number))
 
@@ -67,34 +67,6 @@ def concatenate_two_states(dfa, state_one, state_two):
             dfa[new_state][letter] = transition
 
     return dfa
-
-### BFS starting from @start_state with current @dfa transitions untill singleton reached.
-### return 0 if not possible
-def try_reduction(dfa, start_state):
-    visited = []
-    queue = []
-    reset_len = 0
-    visited.append(start_state)
-    queue.append(start_state)
-    while queue:  ### visiting each node
-        m = queue.pop(0)
-
-        ### going through a state with no transitions
-        if not len(dfa[m].items()):
-            continue
-        
-
-        for (letter, destination) in dfa[m].items():
-            if destination not in visited:
-                reset_len += 1
-                
-                ### if singleton found --> reduction happens
-                if type(destination) == int:
-                    return start_state, destination, reset_len
-                visited.append(destination)
-                queue.append(destination)
-
-    return 0
 
 
 ### When only strongly connected DFAs should be generated, task is easier, but it's a pretty big restriction
@@ -175,7 +147,9 @@ def reorder_transitions(dfa):
 
 ### assuming states_to_remove is doubled state
 ### removes all states from @all_states assosiated with @reduction
+### There can be at most one empty state in @all_states
 def remove_states(all_states, reduction):
+    print("arguments came : ", all_states, " ", reduction)
     states_to_remove = reduction[0]
     reduction_dest = reduction[1]
     
@@ -187,11 +161,16 @@ def remove_states(all_states, reduction):
         states_to_remove = tuple(x for x in states_to_remove if x != reduction_dest)
 
     ### deleting all states containing first or second state
+    ### special case for opne empty state
     temp_states = all_states.copy()
     for remove_state in states_to_remove:
         for state in temp_states:
-            if remove_state in state:
-                all_states.remove(state)
+            if type(state) != int:
+                if remove_state in state:
+                    all_states.remove(state)
+            else:
+                if remove_state == state:
+                    all_states.remove(state)
 
     return all_states
 
@@ -255,7 +234,39 @@ def check_connected(dfa):
 
     return 1
 
-### Singletons are not in states_to_compress
+
+
+
+### BFS starting from @start_state with current @dfa transitions untill singleton reached.
+### return 0 if not possible
+def try_reduction(dfa, start_state):
+    visited = []
+    queue = []
+    reset_len = 0
+    visited.append(start_state)
+    queue.append(start_state)
+    while queue:  ### visiting each node
+        m = queue.pop(0)
+
+        ### going through a state with no transitions
+        if not len(dfa[m].items()):
+            continue
+        
+
+        for (letter, destination) in dfa[m].items():
+            if destination not in visited:
+                reset_len += 1
+                
+                ### if singleton found --> reduction happens
+                if type(destination) == int:
+                    return start_state, destination, reset_len
+                visited.append(destination)
+                queue.append(destination)
+
+    return 0
+
+### Singletons are not in states_to_compress, except empty ones
+### Two empty singletons automatically mean not synchro
 
 ### Finding a path to a random singleton. 
 ### Assuming one can synchronize one singleton to another. Connected component required
@@ -266,19 +277,26 @@ def check_connected(dfa):
 
 ### Return  0 on no reduction found
 ###         -1 on reductions happend to different components (applicable to not strongly connected)
+###         -2 on 2+ empty states
 ###         1 on success            
 def check_synchro(dfa):
     dfa_extended = generate_double(dfa)
-
     states_to_compress = set(dfa_extended.keys())
     temp_states = states_to_compress.copy()
     ### for not strongly connected
     reduced_destinations = dict()
     ### removing all singletons, leaving only doubled (not sure if this should be done)
+    empty_found = 0
     for state in temp_states:
         if type(state) == int:
+            if dfa[state] == {}:
+                if empty_found:
+                    return -2
+                
+                empty_found = 1                 
+                continue                    
+                
             states_to_compress.remove(state)
-
     temp_states = set() 
     while len(states_to_compress):
         ### no reduction found (no possible)
@@ -293,22 +311,26 @@ def check_synchro(dfa):
                 reduced_destinations[reduced_to[1]] = []
                 states_to_compress = remove_states(states_to_compress, reduced_to)
                 break
-    
+            else:
+                reduced_destinations[state] = []
+                states_to_compress.remove(state)
     ### for not strongly connected
     for state in reduced_destinations.keys():
         reduced_destinations[state] = find_reachable_states(dfa, state)
     
     ret_val = -1
     for reset_state in reduced_destinations.keys():
-        if ret_val == 1:
-            break
         ### if all states contain reset_state, it will remain 1 after internal for loop
         ret_val = 1
         for state in reduced_destinations.keys():
-            if not reset_state in reduced_destinations[state]:
+            if not reset_state in reduced_destinations[state] and reset_state != state:
                 ret_val = -1
                 break
-    
+        if ret_val == 1:
+            print("dfa is ", dfa)
+            print("reduced to ", reduced_destinations)
+            print("reset state is ", reset_state)
+            break
     return ret_val 
     
 
