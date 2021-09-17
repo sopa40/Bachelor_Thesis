@@ -1,31 +1,17 @@
 import random
+import DFA_config 
 
-
-### DFA parameters: @max_states_number, @max_transition_number, @max_alphabet_number. 
-### Alphabet and states are named from 0 to max value
-### DFA representation: as dictionary 
-### {start_state: {transition_symbol: end_state} }
-### {int : {int : int} }
-### doubled states are notated as (state_1, state_2), singletons as state_1
-
-### if the format of the DFA does not correspond to the one above, either error or wrong evaluations are possible.
-
-### symbols are needed mainly to concatenate two states and for transitions, short path is not calculated yet
-
-max_states_number = 2
-max_transition_number = 2
-max_alphabet_number = 2
-alphabet = list(range(max_alphabet_number))
+alphabet = list(range(DFA_config.max_alphabet_number))
 
 def generate_transitions():
-    begin_state = random.randint(0, max_states_number - 1)
-    end_state = random.randint(0, max_states_number - 1)
-    letter = random.randint(0, max_alphabet_number - 1)
+    begin_state = random.randint(0, DFA_config.max_states_number - 1)
+    end_state = random.randint(0, DFA_config.max_states_number - 1)
+    letter = random.randint(0, DFA_config.max_alphabet_number - 1)
     return begin_state, letter, end_state
 
 def generate_transition_from_state(begin_state):
-    end_state = random.randint(0, max_states_number - 1)
-    letter = random.randint(0, max_alphabet_number - 1)
+    end_state = random.randint(0, DFA_config.max_states_number - 1)
+    letter = random.randint(0, DFA_config.max_alphabet_number - 1)
     return begin_state, letter, end_state
 
 def add_transition(dfa, transition):
@@ -75,8 +61,8 @@ def concatenate_two_states(dfa, state_one, state_two):
 def generate_DFA():
     failed_tries = 0
     transition_number = 0
-    dfa = {k: dict() for k in range(0, max_states_number)}
-    while transition_number < max_transition_number:
+    dfa = {k: dict() for k in range(0, DFA_config.max_states_number)}
+    while transition_number < DFA_config.max_transition_number:
         transition = generate_transitions()
         if not add_transition(dfa, transition):
             failed_tries += 1
@@ -86,9 +72,9 @@ def generate_DFA():
     return dfa
 
 def generate_non_empty_DFA():
-    dfa = {k: dict() for k in range(0, max_states_number)}
+    dfa = {k: dict() for k in range(0, DFA_config.max_states_number)}
     failed_tries = 0
-    residual_trans_num = max_transition_number - max_states_number
+    residual_trans_num = DFA_config.max_transition_number - DFA_config.max_states_number
     for state in dfa:
         transition_from_state = generate_transition_from_state(state)
         if not add_transition(dfa, transition_from_state):
@@ -128,7 +114,7 @@ def generate_connected_DFA():
     
     return generated_DFA
 
-### orders transitions to be from 0 to @max_transition_number
+### orders transitions to be from 0 to @DFA_config.max_transition_number
 def reorder_transitions(dfa):
     transition_order = alphabet
     
@@ -149,7 +135,6 @@ def reorder_transitions(dfa):
 ### removes all states from @all_states assosiated with @reduction
 ### There can be at most one empty state in @all_states
 def remove_states(all_states, reduction):
-    print("arguments came : ", all_states, " ", reduction)
     states_to_remove = reduction[0]
     reduction_dest = reduction[1]
     
@@ -184,7 +169,6 @@ def find_reachable_states(dfa, start_state):
     queue.append(start_state)
     while queue:  ### visiting each node
         m = queue.pop(0)
-        
         ### going through a state with no transitions
         if not len(dfa[m].items()):
             continue
@@ -204,7 +188,19 @@ def check_if_empty(dfa):
         if dfa[state] == {}:
             return 1
     return 0    
-
+    
+def check_if_one_empty(dfa):
+    empty_found = 0
+    for state in dfa:
+        if dfa[state] == {}:
+            if empty_found:
+                return 0
+            empty_found = 1
+            
+    if empty_found:
+        return 1
+        
+    return 0
 ### check via bfs if every vertex can be reached from any
 ### strongly connected component
 
@@ -298,6 +294,7 @@ def check_synchro(dfa):
                 
             states_to_compress.remove(state)
     temp_states = set() 
+    
     while len(states_to_compress):
         ### no reduction found (no possible)
         if len(temp_states) == len(states_to_compress):  
@@ -311,7 +308,7 @@ def check_synchro(dfa):
                 reduced_destinations[reduced_to[1]] = []
                 states_to_compress = remove_states(states_to_compress, reduced_to)
                 break
-            else:
+            elif type(state) == int:
                 reduced_destinations[state] = []
                 states_to_compress.remove(state)
     ### for not strongly connected
@@ -327,9 +324,6 @@ def check_synchro(dfa):
                 ret_val = -1
                 break
         if ret_val == 1:
-            print("dfa is ", dfa)
-            print("reduced to ", reduced_destinations)
-            print("reset state is ", reset_state)
             break
     return ret_val 
     
